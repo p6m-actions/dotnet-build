@@ -36,6 +36,10 @@ inputs:
     description: "MSBuild verbosity level"
     required: false
     default: "minimal"
+  test-filter:
+    description: "Filter expression for running tests (e.g., 'Category!=Integration')"
+    required: false
+    default: ""
 
 # Define the outputs for this action
 outputs:
@@ -88,21 +92,31 @@ runs:
       shell: bash
       run: |
         echo "Running tests..."
+        
+        # Build filter argument if test-filter is provided
+        FILTER_ARG=""
+        if [ -n "${{ inputs.test-filter }}" ]; then
+          FILTER_ARG="--filter \"${{ inputs.test-filter }}\""
+          echo "Applying test filter: ${{ inputs.test-filter }}"
+        fi
+        
         if [ "${{ inputs.collect-coverage }}" == "true" ]; then
-          dotnet test "${{ inputs.solution-path }}" \
+          eval "dotnet test \"${{ inputs.solution-path }}\" \
             --configuration ${{ inputs.configuration }} \
             --no-build \
             --verbosity ${{ inputs.verbosity }} \
-            --collect:"XPlat Code Coverage" \
+            --collect:\"XPlat Code Coverage\" \
             --results-directory ./TestResults \
-            --logger trx
+            --logger trx \
+            $FILTER_ARG"
         else
-          dotnet test "${{ inputs.solution-path }}" \
+          eval "dotnet test \"${{ inputs.solution-path }}\" \
             --configuration ${{ inputs.configuration }} \
             --no-build \
             --verbosity ${{ inputs.verbosity }} \
             --logger trx \
-            --results-directory ./TestResults
+            --results-directory ./TestResults \
+            $FILTER_ARG"
         fi
         
         # Extract test results summary
