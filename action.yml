@@ -81,8 +81,16 @@ runs:
       id: build-info
       shell: bash
       run: |
-        # Extract version information from MSBuild output or assembly
-        VERSION=$(dotnet run --project "${{ inputs.solution-path }}" --configuration ${{ inputs.configuration }} --verbosity quiet -- --version 2>/dev/null || echo "1.0.0")
+        # Extract version from Directory.Build.props (same source of truth as
+        # p6m-actions/dotnet-cut-tag). Reading the file avoids spinning up the
+        # runtime — the previous `dotnet run -- --version` probe hung for web
+        # apps (Microsoft.NET.Sdk.Web -> app.Run() never exits) and even when
+        # it exited it polluted stdout with "Building..." which broke
+        # $GITHUB_OUTPUT's single-line requirement.
+        if [ -f Directory.Build.props ]; then
+          VERSION=$(grep -oP '<VersionPrefix>\K[^<]+' Directory.Build.props | head -1)
+        fi
+        VERSION=${VERSION:-1.0.0}
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Build version: $VERSION"
 
